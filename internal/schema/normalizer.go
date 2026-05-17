@@ -2,7 +2,6 @@ package schema
 
 import (
 	"errors"
-	"fmt"
 )
 
 // Schema represents a governance schema definition.
@@ -24,13 +23,11 @@ func SchemaRead(id string) (*Schema, error) {
 }
 
 // Normalize applies schema normalization to raw data.
-func Normalize(schema *Schema, data map[string]interface{}) (map[string]interface{
+func Normalize(schema *Schema, data map[string]interface{}) (map[string]interface{}, error) {
 	// Nil guard (CIDG plat-01): return error instead of panicking on nil schema
 	if schema == nil {
 		return nil, errors.New("cannot normalize: schema is nil — SchemaRead may have failed")
 	}
-}, error) {
-	// Bug: missing nil check — will panic if schema is nil
 	// Apply schema fields
 	result := make(map[string]interface{})
 	for k, v := range data {
