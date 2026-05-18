@@ -5,12 +5,15 @@ package arbitration
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/coreidentity/sal-kernel/internal/intent"
 )
 
 // ── Payload types ──────────────────────────────────────────────
@@ -117,6 +120,7 @@ type EvalResult struct {
 	BrokenLink          *BrokenLinkInfo            `json:"broken_link,omitempty"`
 	ParameterValidation *ParameterValidationResult `json:"parameter_validation"`
 	TrustChainDepth     int                        `json:"trust_chain_depth"`
+	IntentSchema        string                     `json:"intent_schema,omitempty"`
 }
 
 // ── Constants ──────────────────────────────────────────────────
@@ -198,6 +202,29 @@ func Evaluate(req *ArbitrateRequest) *EvalResult {
 		}
 	}
 
+	// ── Intent evaluation ─────────────────────────────────────
+	resolvedSchema, intentErr := intent.Resolve(p.Intent.Declared)
+	if errors.Is(intentErr, intent.ErrIntentMissing) {
+		return &EvalResult{
+			Decision:            "DENY",
+			ReasonCode:          "SAL-4003",
+			Field:               "intent.declared",
+			ParameterValidation: pv,
+			TrustChainDepth:     chainDepth,
+		}
+	}
+	if errors.Is(intentErr, intent.ErrIntentUnknown) {
+		return &EvalResult{
+			Decision:            "DENY",
+			ReasonCode:          "SAL-4002",
+			Field:               "intent.declared",
+			ParameterValidation: pv,
+			TrustChainDepth:     chainDepth,
+		}
+	}
+	// Intent resolved — stamp canonical ID for Proof Pack
+	p.Intent.Declared = resolvedSchema.ID
+
 	// ── Base policy: ALLOW if cert not expired ────────────────
 	if p.Identity.CertExpiry != "" {
 		exp, err := time.Parse(time.RFC3339, p.Identity.CertExpiry)
@@ -216,6 +243,7 @@ func Evaluate(req *ArbitrateRequest) *EvalResult {
 		Decision:            "ALLOW",
 		ParameterValidation: pv,
 		TrustChainDepth:     chainDepth,
+		IntentSchema:        p.Intent.Declared,
 	}
 }
 

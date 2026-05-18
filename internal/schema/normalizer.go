@@ -1,34 +1,47 @@
+// internal/schema/normalizer.go — SAL Kernel Schema Normalization
+//
+// SchemaRead resolves a schema by ID from the intent registry.
+// Closes the TODO stub — backed by the hardcoded intent registry (v1).
 package schema
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/coreidentity/sal-kernel/internal/intent"
 )
 
-// Schema represents a governance schema definition.
+// Schema represents a resolved governance schema.
 type Schema struct {
-	ID      string
-	Version string
-	Fields  map[string]interface{}
+	ID          string
+	Version     string
+	Description string
+	Fields      map[string]interface{}
 }
 
-// SchemaRead loads a schema by ID from the database rail.
-// Returns the schema or an error if not found or invalid.
+// SchemaRead loads a schema by ID from the intent registry.
 func SchemaRead(id string) (*Schema, error) {
-	// TODO: implement real database read
 	if id == "" {
 		return nil, errors.New("schema id cannot be empty")
 	}
-	// Placeholder — replace with actual DB read
-	return &Schema{ID: id, Version: "1.0", Fields: make(map[string]interface{})}, nil
+	intentSchema, err := intent.Resolve(id)
+	if err != nil {
+		return nil, fmt.Errorf("schema %q not found: %w", id, err)
+	}
+	return &Schema{
+		ID:          intentSchema.ID,
+		Version:     "1.0",
+		Description: intentSchema.Description,
+		Fields:      make(map[string]interface{}),
+	}, nil
 }
 
 // Normalize applies schema normalization to raw data.
 func Normalize(schema *Schema, data map[string]interface{}) (map[string]interface{}, error) {
-	// Nil guard (CIDG plat-01): return error instead of panicking on nil schema
+	// Nil guard (CIDG plat-01)
 	if schema == nil {
 		return nil, errors.New("cannot normalize: schema is nil — SchemaRead may have failed")
 	}
-	// Apply schema fields
 	result := make(map[string]interface{})
 	for k, v := range data {
 		if _, ok := schema.Fields[k]; ok {
