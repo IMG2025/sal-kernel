@@ -1,4 +1,4 @@
-// sal-kernel — CoreIdentity SAL Arbitration Engine
+// sal-kernel — CoreIdentity Semantic Authorization Layer (SAL) Enforcement Kernel
 // Phases: parameter-validation + delegation-chain
 // Port 8443 (plain HTTP, TLS terminated at GKE ingress)
 package main
@@ -44,8 +44,8 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-// ── Arbitrate ──────────────────────────────────────────────────
-func arbitrateHandler(w http.ResponseWriter, r *http.Request) {
+// ── Authorize ──────────────────────────────────────────────────
+func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -79,7 +79,7 @@ func arbitrateHandler(w http.ResponseWriter, r *http.Request) {
 		asset   = p.Asset.NormalizedID
 	}
 
-	log.Printf("[EVAL] %s agent:%s intent:%s action:%s asset:%s latency:%s",
+	log.Printf("[AUTHORIZE] %s agent:%s intent:%s action:%s asset:%s latency:%s",
 		result.Decision, agentID, intent, action, asset, latency)
 	log.Printf("[LEDGER] Anchored proof pack — id: %s anchor: %s...%s",
 		proofID, anchor[:8], anchor[len(anchor)-8:])
@@ -122,7 +122,7 @@ func anchorHash(id string) string {
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/health",    healthHandler)
-	mux.HandleFunc("/v1/arbitrate", arbitrateHandler)
+	mux.HandleFunc("/v1/authorize", authorizeHandler)
 	mux.HandleFunc("/health",       healthHandler) // alias
 
 	log.Printf("[BOOT] SAL Kernel %s listening on %s", policyVersion, listenAddr)
